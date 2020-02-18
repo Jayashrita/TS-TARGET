@@ -1,0 +1,112 @@
+echo both
+### LAMMPS inputfile ###
+#------- Global Setup ---------------------
+timer timeout ${max_time}
+variable p_id world   0 1 2 3 4 5 6 7 8 9 
+variable seed world 745821 9463927 84746 22764 12789 122290 537292 929293 38451 68562
+units		lj
+atom_style	full
+
+# ---------- Box and Atoms --------------------- 
+#include  in.box.${p_id}
+variable mass        equal 1.
+variable side        equal 20.0
+variable numAtoms    equal 216
+
+region          box block 0 ${side} 0 ${side} 0 ${side}
+create_box      1 box 
+create_atoms    1 random ${numAtoms} ${seed} box
+mass            1 ${mass}
+
+#change_box    all triclinic
+#read_restart ../../unb-T298/fcc-256N/restart.end
+#read_restart restart.end
+
+# ---------- Interatomic Potential --------------------- 
+### Argon Potential Parameters ###
+pair_style      lj/cut 2.5
+pair_coeff      * * 1 1
+pair_modify     shift yes
+neigh_modify    delay 10 every 1
+
+# ---------- Simulation Settings --------------------- 
+variable temperature         equal 0.741
+variable pressure            equal 0.016
+variable temperature2 world  0.2 0.2 1.4 1.4 0.2 0.2 1.4 1.4 0.2 1.4
+variable tempDamp            equal 0.05 # approx 0.1 ps
+variable pressureDamp        equal 50.0
+timestep                     0.001 # According to Frenkel and Smit is 0.001
+
+# ---------- Backup and Print ---------------------
+shell bck.meup.sh restart.end.${p_id} dump.${p_id}*
+variable out_seldom          equal 2000 
+variable out_often           equal 2000
+thermo          ${out_often}
+thermo_style    custom step temp pe press lx
+thermo_modify flush yes
+restart         ${out_seldom} restart.A.${p_id} restart.B.${p_id}
+dump            simDump all atom ${out_often} dump.${p_id}.lammpstrj
+#dump            myDump all dcd ${out_often} out.${p_id}.dcd
+#dump_modify    myDump 
+
+
+# Since I start from a random configuration I minimize first
+
+# ---------- Equilibration Run --------------------- 
+# potential minimization
+minimize 1.0e-2 1.0e-3 100 1000
+
+reset_timestep 	0
+
+# Form or dissolve clusters
+fix             1 all nve
+fix             2 all temp/csvr ${temperature} ${temperature2} ${tempDamp} ${seed}
+velocity        all create ${temperature} ${seed} dist gaussian
+run             250000
+
+unfix           1
+unfix           2
+
+# Take the systems to temperature ${temperature}
+
+fix             1 all nve
+fix             2 all temp/csvr ${temperature2} ${temperature} ${tempDamp} ${seed}
+run             250000
+
+unfix           1
+unfix           2
+
+# NPT equilibration
+
+fix             1 all nph iso ${pressure} ${pressure} ${pressureDamp}
+fix             2 all temp/csvr ${temperature} ${temperature} ${tempDamp} ${seed}
+run             250000
+
+unfix           1
+unfix           2
+
+
+# Take the systems to a specific cluster size
+dump  dcdDump all dcd  ${out_often} dump.${p_id}.dcd
+fix             1 all plumed plumedfile plumed.start.dat.${p_id} outfile log.plumed
+fix             2 all nph iso ${pressure} ${pressure} ${pressureDamp}
+fix             3 all temp/csvr ${temperature} ${temperature} ${tempDamp} ${seed}
+
+run             250000
+
+unfix           1
+unfix           2
+unfix           3
+
+# ---------- Simulation Run ---------------------
+# Biased simulation
+fix             1 all plumed plumedfile plumed.dat outfile log.plumed
+fix             2 all nph iso ${pressure} ${pressure} ${pressureDamp}
+fix             3 all temp/csvr ${temperature} ${temperature} ${tempDamp} ${seed}
+
+run             500000000 
+# ---------- End --------------------- 
+#write_data   data.final.${p_id}
+write_restart  restart.end.${p_id}
+#write_data	data.final
+
