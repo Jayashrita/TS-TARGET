@@ -20,17 +20,17 @@
    along with ves-code.  If not, see <http://www.gnu.org/licenses/>.
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
-#include "TargetDistribution.h"
-#include "GridIntegrationWeights.h"
-#include "VesBias.h"
-#include "core/ActionRegister.h"
-#include "tools/Grid.h"
+#include "ves/TargetDistribution.h"
+#include "ves/GridIntegrationWeights.h"
+#include "ves/VesBias.h"
+#include "ves/core/ActionRegister.h"
+#include "ves/tools/Grid.h"
 #include <iostream>
-#include "tools/FileBase.h"
-#include "Optimizer.h"
-#include "LinearBasisSetExpansion.h"
-#include "VesLinearExpansion.h"
-#include "tools/Communicator.h"
+#include "ves/tools/FileBase.h"
+#include "ves/Optimizer.h"
+#include "ves/LinearBasisSetExpansion.h"
+#include "ves/VesLinearExpansion.h"
+#include "ves/tools/Communicator.h"
 
 namespace PLMD {
 namespace ves {
